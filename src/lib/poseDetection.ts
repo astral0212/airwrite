@@ -54,25 +54,25 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.55,
-  thumbTuckMaxDistance: 0.28,
-  indexAboveMiddleMinY: 0.02,
-  middleNearIndexMaxX: 0.14,
-  middleNearIndexMaxY: 0.18,
-  pinkySpreadMin: 0.03,
-  pinkySpreadMax: 0.28,
-  extendedCurlMax: 65,
-  bentCurlMin: 35,
-  bentCurlMax: 110,
-  foldedCurlMin: 80,
-  thumbWeight: 1,
-  indexWeight: 1,
-  middleWeight: 1,
-  ringWeight: 1,
-  pinkyWeight: 1,
-  indexAboveMiddleWeight: 0.7,
-  middleNearIndexWeight: 0.7,
-  pinkySpreadWeight: 0.5,
+  scoreThreshold: 0.45,
+  thumbTuckMaxDistance: 0.32,
+  indexAboveMiddleMinY: 0.01,
+  middleNearIndexMaxX: 0.18,
+  middleNearIndexMaxY: 0.22,
+  pinkySpreadMin: 0.02,
+  pinkySpreadMax: 0.32,
+  extendedCurlMax: 110,  // used as min threshold — fingers above this count as extended
+  bentCurlMin: 70,
+  bentCurlMax: 155,
+  foldedCurlMin: 100,    // used as max threshold — fingers below this count as folded
+  thumbWeight: 0.5,
+  indexWeight: 1.5,
+  middleWeight: 0.5,
+  ringWeight: 0.5,
+  pinkyWeight: 1.5,
+  indexAboveMiddleWeight: 0.3,
+  middleNearIndexWeight: 0.3,
+  pinkySpreadWeight: 0.3,
 };
 
 const distance = (a: NormalizedLandmark, b: NormalizedLandmark) => {
@@ -85,11 +85,16 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 const normalize = (value: number, min: number, max: number) => clamp((value - min) / (max - min), 0, 1);
 
-const getExtendedScore = (curl: number, threshold: number) => clamp((threshold - curl) / threshold, 0, 1);
+// Extended = large angle (straight finger ~180°), folded = small angle (curled ~30-70°)
+const getExtendedScore = (curl: number, min: number) => clamp((curl - min) / (180 - min), 0, 1);
 
-const getBentScore = (curl: number, min: number, max: number) => clamp((curl - min) / (max - min), 0, 1);
+const getBentScore = (curl: number, min: number, max: number) => {
+  if (curl <= min || curl >= max) return 0;
+  const mid = (min + max) / 2;
+  return 1 - Math.abs(curl - mid) / ((max - min) / 2);
+};
 
-const getFoldedScore = (curl: number, min: number) => clamp((curl - min) / (180 - min), 0, 1);
+const getFoldedScore = (curl: number, max: number) => clamp(1 - curl / max, 0, 1);
 
 export const detectGojoPose = (
   landmarks: NormalizedLandmark[],

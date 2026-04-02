@@ -73,19 +73,19 @@ export const getFingerState = (landmarks: NormalizedLandmark[], finger: FingerNa
     if (isThumbTucked(landmarks)) {
       return 'tucked';
     }
-    if (curl < 40) {
+    if (curl > 140) {
       return 'extended';
     }
-    if (curl < 85) {
+    if (curl > 90) {
       return 'bent';
     }
     return 'folded';
   }
 
-  if (curl < 65) {
+  if (curl > 150) {
     return 'extended';
   }
-  if (curl < 110) {
+  if (curl > 100) {
     return 'bent';
   }
   return 'folded';
