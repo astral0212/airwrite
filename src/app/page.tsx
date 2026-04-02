@@ -31,7 +31,7 @@ export default function HomePage() {
                 Real-time air handwriting · webcam powered
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-slate-400 backdrop-blur-sm">
-                ✊ Fist to activate Void Mode · ✌️ Peace to erase
+                🖐 Open palm to activate Void Mode · ✌️ Peace to erase
               </div>
             </div>
 
@@ -55,7 +55,7 @@ export default function HomePage() {
               </div>
               <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 backdrop-blur-sm">
                 <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Void Mode</p>
-                <p className="mt-2 text-sm text-slate-400">Hold a closed fist for 1 second to activate the cosmic void environment.</p>
+                <p className="mt-2 text-sm text-slate-400">Show an open palm (hi-five) for 1 second to activate the cosmic void environment.</p>
               </div>
               <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 backdrop-blur-sm">
                 <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Export</p>

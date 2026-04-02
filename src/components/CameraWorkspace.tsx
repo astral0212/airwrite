@@ -56,7 +56,7 @@ export default function CameraWorkspace() {
   const peaceHoldRef = useRef(0);
   const peaceCooldownRef = useRef(0);
   const PEACE_HOLD_MS = 600;
-  const PEACE_COOLDOWN_MS = 2000;
+  const PEACE_COOLDOWN_MS = 600;
 
   const [voidModeFlash, setVoidModeFlash] = useState(false);
 
@@ -298,7 +298,7 @@ export default function CameraWorkspace() {
     let cursorPosition: Point | null = null;
 
     // Block drawing when a gesture (peace or fist hold) is in progress
-    const gestureBlocked = peaceHoldRef.current > 0 || peaceCooldownRef.current > 0;
+    const gestureBlocked = peaceHoldRef.current > 0;
 
     if (landmarks && !gestureBlocked) {
       lostTrackingFramesRef.current = 0;
