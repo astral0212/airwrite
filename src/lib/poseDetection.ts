@@ -54,7 +54,7 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.42,
+  scoreThreshold: 0.34,
   thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
   middleNearIndexMaxX: 0.20,
