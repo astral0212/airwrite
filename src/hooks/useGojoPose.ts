@@ -50,6 +50,8 @@ export const useGojoPose = (): UseGojoPoseState => {
   const cooldownRef = useRef(0);
   const lastTimestampRef = useRef(Date.now());
   const triggeredRef = useRef(false);
+  const graceRef = useRef(0);
+  const GRACE_MS = 350;
 
   const updateLandmarks = useCallback((landmarks?: NormalizedLandmark[]) => {
     const now = Date.now();
@@ -76,6 +78,7 @@ export const useGojoPose = (): UseGojoPoseState => {
     setDebugInfo(result.debug);
 
     if (result.score >= SCORE_THRESHOLD) {
+      graceRef.current = 0;
       holdTimeRef.current += delta;
       const progress = Math.min(holdTimeRef.current / HOLD_DURATION_MS, 1);
       setHoldProgress(progress);
@@ -90,9 +93,12 @@ export const useGojoPose = (): UseGojoPoseState => {
         setHoldProgress(0);
       }
     } else {
-      holdTimeRef.current = 0;
-      setHoldProgress(0);
-      setIsPoseMatched(false);
+      graceRef.current += delta;
+      if (graceRef.current > GRACE_MS) {
+        holdTimeRef.current = 0;
+        setHoldProgress(0);
+        setIsPoseMatched(false);
+      }
     }
   }, []);
 

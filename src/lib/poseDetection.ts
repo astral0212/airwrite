@@ -120,8 +120,8 @@ export const detectGojoPose = (
   // Ring: folded inward (small curl angle) — lenient
   const ringScore = getFoldedScore(ringCurl, config.foldedCurlMin * 1.2);
 
-  // Pinky: extended outward
-  const pinkyScore = getExtendedScore(pinkyCurl, config.extendedCurlMax);
+  // Pinky: folded/closed inward
+  const pinkyScore = getFoldedScore(pinkyCurl, config.foldedCurlMin);
 
   // Index above middle (index tip higher in frame = smaller y)
   const indexAboveMiddle = Boolean(indexTip && middleTip && indexTip.y < middleTip.y - config.indexAboveMiddleMinY);
@@ -171,7 +171,7 @@ export const detectGojoPose = (
     index: indexScore > 0.5 ? 'extended' : 'folded',
     middle: middleScore > 0.5 ? 'folded' : 'extended',
     ring: ringScore > 0.5 ? 'folded' : 'extended',
-    pinky: pinkyScore > 0.5 ? 'extended' : 'folded',
+    pinky: pinkyScore > 0.5 ? 'folded' : 'extended',
     indexAboveMiddle,
     middleNearIndex,
     pinkySpread,
