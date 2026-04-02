@@ -82,10 +82,10 @@ export const getFingerState = (landmarks: NormalizedLandmark[], finger: FingerNa
     return 'folded';
   }
 
-  if (curl < 40) {
+  if (curl < 65) {
     return 'extended';
   }
-  if (curl < 90) {
+  if (curl < 110) {
     return 'bent';
   }
   return 'folded';
