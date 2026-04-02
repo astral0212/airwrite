@@ -108,62 +108,61 @@ const emptyDebug = (scoreThreshold: number): GojoPoseDebugInfo => ({
   score: 0,
 });
 
-// Pray 🙏 gesture — both hands pressed together
+// Fist ✊ gesture — all fingers curled (small curl angles)
 export const detectGojoPose = (
   allHands: NormalizedLandmark[][],
   config: GojoPoseConfig = DEFAULT_GOJO_POSE_CONFIG,
 ): GojoPoseResult => {
-  if (allHands.length < 2) {
+  const landmarks = allHands[0];
+  if (!landmarks) {
     return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
   }
 
-  const h1 = allHands[0];
-  const h2 = allHands[1];
+  // For a fist, all finger joints are bent — curl angles are small (30-80°)
+  // We measure tip-to-wrist distance: in a fist, tips are close to the wrist
+  const wrist = landmarks[0];
+  const indexTip = landmarks[8];
+  const middleTip = landmarks[12];
+  const ringTip = landmarks[16];
+  const pinkyTip = landmarks[20];
+  const thumbTip = landmarks[4];
+  const indexMcp = landmarks[5];
 
-  if (!h1 || !h2) {
+  if (!wrist || !indexTip || !middleTip || !ringTip || !pinkyTip || !thumbTip || !indexMcp) {
     return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
   }
 
-  // Wrist proximity (landmark 0)
-  const wristScore = h1[0] && h2[0] ? proximityScore(distance(h1[0], h2[0]), 0.7) : 0;
+  // In a fist, fingertips are close to the palm (wrist or MCP area)
+  const maxCurlDist = 0.22;
+  const indexScore = proximityScore(distance(indexTip, indexMcp), maxCurlDist);
+  const middleScore = proximityScore(distance(middleTip, landmarks[9]!), maxCurlDist);
+  const ringScore = proximityScore(distance(ringTip, landmarks[13]!), maxCurlDist);
+  const pinkyScore = proximityScore(distance(pinkyTip, landmarks[17]!), maxCurlDist);
+  const thumbScore = proximityScore(distance(thumbTip, indexMcp), 0.28);
 
-  // Palm center proximity (landmark 9 = middle MCP)
-  const palmScore = h1[9] && h2[9] ? proximityScore(distance(h1[9], h2[9]), 0.65) : 0;
-
-  // Index tip proximity (landmark 8)
-  const indexScore = h1[8] && h2[8] ? proximityScore(distance(h1[8], h2[8]), 0.6) : 0;
-
-  // Pinky tip proximity (landmark 20)
-  const pinkyScore = h1[20] && h2[20] ? proximityScore(distance(h1[20], h2[20]), 0.6) : 0;
-
-  // Middle tip proximity (landmark 12)
-  const middleScore = h1[12] && h2[12] ? proximityScore(distance(h1[12], h2[12]), 0.6) : 0;
-
-  const score = clamp((wristScore * 1.5 + palmScore * 1.5 + indexScore + middleScore + pinkyScore) / 6.5, 0, 1);
+  const score = clamp((indexScore + middleScore + ringScore + pinkyScore + thumbScore * 0.5) / 4.5, 0, 1);
   const matched = score >= config.scoreThreshold;
 
-  const wristDist = h1[0] && h2[0] ? distance(h1[0], h2[0]) : 1;
-
   const debug: GojoPoseDebugInfo = {
-    thumb: allHands.length >= 2 ? 'detected' : 'none',
-    index: `hands: ${allHands.length}`,
-    middle: `wrist dist: ${wristDist.toFixed(2)}`,
-    ring: `palm score: ${palmScore.toFixed(2)}`,
-    pinky: `tip score: ${indexScore.toFixed(2)}`,
-    indexAboveMiddle: allHands.length >= 2,
-    middleNearIndex: palmScore > 0.5,
+    thumb: thumbScore > 0.5 ? 'curled' : 'open',
+    index: indexScore > 0.5 ? 'curled' : 'open',
+    middle: middleScore > 0.5 ? 'curled' : 'open',
+    ring: ringScore > 0.5 ? 'curled' : 'open',
+    pinky: pinkyScore > 0.5 ? 'curled' : 'open',
+    indexAboveMiddle: false,
+    middleNearIndex: false,
     pinkySpread: pinkyScore,
-    ringCurl: palmScore,
-    thumbTuckDistance: wristDist,
-    thumbScore: wristScore,
+    ringCurl: ringScore,
+    thumbTuckDistance: distance(thumbTip, indexMcp),
+    thumbScore,
     indexScore,
     middleScore,
-    ringScore: palmScore,
+    ringScore,
     pinkyScore,
-    indexAboveMiddleScore: wristScore,
-    middleNearIndexScore: palmScore,
-    pinkySpreadScore: pinkyScore,
-    thumbTuckScore: wristScore,
+    indexAboveMiddleScore: 0,
+    middleNearIndexScore: 0,
+    pinkySpreadScore: 0,
+    thumbTuckScore: thumbScore,
     scoreThreshold: config.scoreThreshold,
     score,
   };
