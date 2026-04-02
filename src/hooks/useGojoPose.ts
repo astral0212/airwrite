@@ -12,7 +12,7 @@ export interface UseGojoPoseState {
   isPoseTriggered: boolean;
   holdProgress: number;
   cooldownTime: number;
-  updateLandmarks: (landmarks?: NormalizedLandmark[]) => void;
+  updateLandmarks: (allHands: NormalizedLandmark[][]) => void;
 }
 
 const initialDebugInfo: GojoPoseDebugInfo = {
@@ -53,7 +53,7 @@ export const useGojoPose = (): UseGojoPoseState => {
   const graceRef = useRef(0);
   const GRACE_MS = 350;
 
-  const updateLandmarks = useCallback((landmarks?: NormalizedLandmark[]) => {
+  const updateLandmarks = useCallback((allHands: NormalizedLandmark[][]) => {
     const now = Date.now();
     const delta = Math.min(now - lastTimestampRef.current, 120);
     lastTimestampRef.current = now;
@@ -67,14 +67,15 @@ export const useGojoPose = (): UseGojoPoseState => {
       }
     }
 
-    if (!landmarks || cooldownRef.current > 0) {
+    if (cooldownRef.current > 0) {
       holdTimeRef.current = 0;
+      graceRef.current = 0;
       setHoldProgress(0);
       setIsPoseMatched(false);
       return;
     }
 
-    const result = detectGojoPose(landmarks);
+    const result = detectGojoPose(allHands);
     setDebugInfo(result.debug);
 
     if (result.score >= SCORE_THRESHOLD) {

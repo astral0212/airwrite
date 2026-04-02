@@ -261,11 +261,13 @@ export default function CameraWorkspace() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const landmarks = results.multiHandLandmarks?.[0];
+    const allHands = results.multiHandLandmarks ?? [];
+    updateLandmarks(allHands);
+
+    const landmarks = allHands[0];
     let cursorPosition: Point | null = null;
 
     if (landmarks) {
-      updateLandmarks(landmarks);
       lostTrackingFramesRef.current = 0;
       const indexTip = landmarks[INDEX_FINGER_TIP];
       const thumbTip = landmarks[THUMB_TIP];
@@ -302,10 +304,6 @@ export default function CameraWorkspace() {
       }
     }
 
-    if (!landmarks) {
-      updateLandmarks(undefined);
-    }
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     renderCanvas(ctx, strokesRef.current, currentStrokeRef.current);
 
@@ -325,7 +323,7 @@ export default function CameraWorkspace() {
 
     const hands = new Hands({ locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
     hands.setOptions({
-      maxNumHands: 1,
+      maxNumHands: 2,
       modelComplexity: 1,
       minDetectionConfidence: 0.75,
       minTrackingConfidence: 0.6,

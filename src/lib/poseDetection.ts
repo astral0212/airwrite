@@ -1,5 +1,4 @@
 import type { NormalizedLandmark } from '@mediapipe/hands';
-import { getFingerCurl, getFingerTip } from './fingerUtils';
 
 export interface GojoPoseDebugInfo {
   thumb: string;
@@ -54,7 +53,7 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.34,
+  scoreThreshold: 0.45,
   thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
   middleNearIndexMaxX: 0.20,
@@ -81,114 +80,93 @@ const distance = (a: NormalizedLandmark, b: NormalizedLandmark) => {
   return Math.sqrt(dx * dx + dy * dy);
 };
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-// Extended = large curl angle (straight finger ~180°)
-const getExtendedScore = (curl: number, min: number) => clamp((curl - min) / (180 - min), 0, 1);
+const proximityScore = (dist: number, maxDist: number) => clamp(1 - dist / maxDist, 0, 1);
 
-// Folded = small curl angle (curled finger ~30-80°)
-const getFoldedScore = (curl: number, max: number) => clamp(1 - curl / max, 0, 1);
+const emptyDebug = (scoreThreshold: number): GojoPoseDebugInfo => ({
+  thumb: 'none',
+  index: 'none',
+  middle: 'none',
+  ring: 'none',
+  pinky: 'none',
+  indexAboveMiddle: false,
+  middleNearIndex: false,
+  pinkySpread: 0,
+  ringCurl: 0,
+  thumbTuckDistance: 1,
+  thumbScore: 0,
+  indexScore: 0,
+  middleScore: 0,
+  ringScore: 0,
+  pinkyScore: 0,
+  indexAboveMiddleScore: 0,
+  middleNearIndexScore: 0,
+  pinkySpreadScore: 0,
+  thumbTuckScore: 0,
+  scoreThreshold,
+  score: 0,
+});
 
+// Pray 🙏 gesture — both hands pressed together
 export const detectGojoPose = (
-  landmarks: NormalizedLandmark[],
+  allHands: NormalizedLandmark[][],
   config: GojoPoseConfig = DEFAULT_GOJO_POSE_CONFIG,
 ): GojoPoseResult => {
-  const indexTip = getFingerTip(landmarks, 'index');
-  const middleTip = getFingerTip(landmarks, 'middle');
-  const ringTip = getFingerTip(landmarks, 'ring');
-  const pinkyTip = getFingerTip(landmarks, 'pinky');
-  const thumbTip = getFingerTip(landmarks, 'thumb');
-  const indexMcp = landmarks[5];
+  if (allHands.length < 2) {
+    return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
+  }
 
-  const indexCurl = getFingerCurl(landmarks, 'index');
-  const middleCurl = getFingerCurl(landmarks, 'middle');
-  const ringCurl = getFingerCurl(landmarks, 'ring');
-  const pinkyCurl = getFingerCurl(landmarks, 'pinky');
+  const h1 = allHands[0];
+  const h2 = allHands[1];
 
-  // Thumb pinched against index — close distance between thumb tip and index tip/mcp
-  const thumbToIndex = thumbTip && indexTip ? distance(thumbTip, indexTip) : 1;
-  const thumbToMcp = thumbTip && indexMcp ? distance(thumbTip, indexMcp) : 1;
-  const thumbPinchDist = Math.min(thumbToIndex, thumbToMcp);
-  const thumbScore = clamp(1 - thumbPinchDist / config.thumbTuckMaxDistance, 0, 1);
+  if (!h1 || !h2) {
+    return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
+  }
 
-  // Index: extended or slightly bent upward
-  const indexScore = getExtendedScore(indexCurl, config.extendedCurlMax);
+  // Wrist proximity (landmark 0)
+  const wristScore = h1[0] && h2[0] ? proximityScore(distance(h1[0], h2[0]), 0.4) : 0;
 
-  // Middle: folded/bent downward (small curl angle)
-  const middleScore = getFoldedScore(middleCurl, config.foldedCurlMin);
+  // Palm center proximity (landmark 9 = middle MCP)
+  const palmScore = h1[9] && h2[9] ? proximityScore(distance(h1[9], h2[9]), 0.35) : 0;
 
-  // Ring: folded inward (small curl angle) — lenient
-  const ringScore = getFoldedScore(ringCurl, config.foldedCurlMin * 1.2);
+  // Index tip proximity (landmark 8)
+  const indexScore = h1[8] && h2[8] ? proximityScore(distance(h1[8], h2[8]), 0.3) : 0;
 
-  // Pinky: folded/closed inward
-  const pinkyScore = getFoldedScore(pinkyCurl, config.foldedCurlMin);
+  // Pinky tip proximity (landmark 20)
+  const pinkyScore = h1[20] && h2[20] ? proximityScore(distance(h1[20], h2[20]), 0.3) : 0;
 
-  // Index above middle (index tip higher in frame = smaller y)
-  const indexAboveMiddle = Boolean(indexTip && middleTip && indexTip.y < middleTip.y - config.indexAboveMiddleMinY);
-  const indexAboveMiddleScore = indexTip && middleTip
-    ? clamp((middleTip.y - indexTip.y) / 0.15, 0, 1)
-    : 0;
+  // Middle tip proximity (landmark 12)
+  const middleScore = h1[12] && h2[12] ? proximityScore(distance(h1[12], h2[12]), 0.3) : 0;
 
-  // Middle near index base
-  const middleNearIndex = Boolean(
-    indexTip && middleTip &&
-    Math.abs(indexTip.x - middleTip.x) < config.middleNearIndexMaxX &&
-    Math.abs(indexTip.y - middleTip.y) < config.middleNearIndexMaxY,
-  );
-  const middleNearIndexScore = indexTip && middleTip
-    ? clamp(1 - distance(indexTip, middleTip) / 0.25, 0, 1)
-    : 0;
+  const score = clamp((wristScore * 1.5 + palmScore * 1.5 + indexScore + middleScore + pinkyScore) / 6.5, 0, 1);
+  const matched = score >= config.scoreThreshold;
 
-  // Pinky spread away from ring
-  const pinkySpread = pinkyTip && ringTip ? distance(pinkyTip, ringTip) : 0;
-  const pinkySpreadScore = clamp((pinkySpread - config.pinkySpreadMin) / (config.pinkySpreadMax - config.pinkySpreadMin), 0, 1);
-
-  const totalScore =
-    thumbScore * config.thumbWeight +
-    indexScore * config.indexWeight +
-    middleScore * config.middleWeight +
-    ringScore * config.ringWeight +
-    pinkyScore * config.pinkyWeight +
-    indexAboveMiddleScore * config.indexAboveMiddleWeight +
-    middleNearIndexScore * config.middleNearIndexWeight +
-    pinkySpreadScore * config.pinkySpreadWeight;
-
-  const maxScore =
-    config.thumbWeight +
-    config.indexWeight +
-    config.middleWeight +
-    config.ringWeight +
-    config.pinkyWeight +
-    config.indexAboveMiddleWeight +
-    config.middleNearIndexWeight +
-    config.pinkySpreadWeight;
-
-  const normalizedScore = clamp(totalScore / maxScore, 0, 1);
-  const matched = normalizedScore >= config.scoreThreshold;
+  const wristDist = h1[0] && h2[0] ? distance(h1[0], h2[0]) : 1;
 
   const debug: GojoPoseDebugInfo = {
-    thumb: thumbScore > 0.5 ? 'pinched' : 'open',
-    index: indexScore > 0.5 ? 'extended' : 'folded',
-    middle: middleScore > 0.5 ? 'folded' : 'extended',
-    ring: ringScore > 0.5 ? 'folded' : 'extended',
-    pinky: pinkyScore > 0.5 ? 'folded' : 'extended',
-    indexAboveMiddle,
-    middleNearIndex,
-    pinkySpread,
-    ringCurl: ringScore,
-    thumbTuckDistance: thumbPinchDist,
-    thumbScore,
+    thumb: allHands.length >= 2 ? 'detected' : 'none',
+    index: `hands: ${allHands.length}`,
+    middle: `wrist dist: ${wristDist.toFixed(2)}`,
+    ring: `palm score: ${palmScore.toFixed(2)}`,
+    pinky: `tip score: ${indexScore.toFixed(2)}`,
+    indexAboveMiddle: allHands.length >= 2,
+    middleNearIndex: palmScore > 0.5,
+    pinkySpread: pinkyScore,
+    ringCurl: palmScore,
+    thumbTuckDistance: wristDist,
+    thumbScore: wristScore,
     indexScore,
     middleScore,
-    ringScore,
+    ringScore: palmScore,
     pinkyScore,
-    indexAboveMiddleScore,
-    middleNearIndexScore,
-    pinkySpreadScore,
-    thumbTuckScore: thumbScore,
+    indexAboveMiddleScore: wristScore,
+    middleNearIndexScore: palmScore,
+    pinkySpreadScore: pinkyScore,
+    thumbTuckScore: wristScore,
     scoreThreshold: config.scoreThreshold,
-    score: normalizedScore,
+    score,
   };
 
-  return { matched, score: normalizedScore, debug };
+  return { matched, score, debug };
 };
