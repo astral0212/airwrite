@@ -9,6 +9,7 @@ import Toolbar from '@/components/Toolbar';
 import { exportAirWriteImage } from '@/lib/export';
 import { renderCanvas, shouldAddPoint, smoothPoint, Stroke, BrushStyle, Point } from '@/lib/drawing';
 import { isPinchBegin, isPinchContinue, INDEX_FINGER_TIP, THUMB_TIP } from '@/lib/hand';
+import { detectPeaceSign } from '@/lib/poseDetection';
 import { useGojoPose } from '@/hooks/useGojoPose';
 
 export default function CameraWorkspace() {
@@ -52,6 +53,10 @@ export default function CameraWorkspace() {
   const voidModeActiveRef = useRef(false);
   const prevBrushColorRef = useRef<string | null>(null);
   const prevBrushStyleRef = useRef<BrushStyle | null>(null);
+  const peaceHoldRef = useRef(0);
+  const peaceCooldownRef = useRef(0);
+  const PEACE_HOLD_MS = 600;
+  const PEACE_COOLDOWN_MS = 2000;
 
   const [voidModeFlash, setVoidModeFlash] = useState(false);
 
@@ -257,6 +262,11 @@ export default function CameraWorkspace() {
     lastVoidFrameRef.current = now;
     updateVoidModeTimers(delta);
 
+    // Peace sign cooldown tick
+    if (peaceCooldownRef.current > 0) {
+      peaceCooldownRef.current = Math.max(0, peaceCooldownRef.current - delta);
+    }
+
     updateCanvasSize();
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -265,6 +275,26 @@ export default function CameraWorkspace() {
     updateLandmarks(allHands);
 
     const landmarks = allHands[0];
+
+    // Peace sign — erase + exit void mode
+    if (landmarks && peaceCooldownRef.current <= 0) {
+      if (detectPeaceSign(landmarks)) {
+        peaceHoldRef.current += delta;
+        if (peaceHoldRef.current >= PEACE_HOLD_MS) {
+          peaceHoldRef.current = 0;
+          peaceCooldownRef.current = PEACE_COOLDOWN_MS;
+          handleClear();
+          if (voidModeActiveRef.current) {
+            setVoidModeActive(false);
+            setEffectDuration(0);
+            voidModeEffectRef.current = 0;
+          }
+        }
+      } else {
+        peaceHoldRef.current = 0;
+      }
+    }
+
     let cursorPosition: Point | null = null;
 
     if (landmarks) {

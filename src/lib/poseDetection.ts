@@ -84,6 +84,32 @@ const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(ma
 
 const proximityScore = (dist: number, maxDist: number) => clamp(1 - dist / maxDist, 0, 1);
 
+// Peace sign ✌️ — index + middle extended, ring + pinky folded
+export const detectPeaceSign = (landmarks: NormalizedLandmark[]): boolean => {
+  const indexTip = landmarks[8];
+  const middleTip = landmarks[12];
+  const ringTip = landmarks[16];
+  const pinkyTip = landmarks[20];
+  const indexMcp = landmarks[5];
+  const middleMcp = landmarks[9];
+  const ringMcp = landmarks[13];
+  const pinkyMcp = landmarks[17];
+
+  if (!indexTip || !middleTip || !ringTip || !pinkyTip || !indexMcp || !middleMcp || !ringMcp || !pinkyMcp) {
+    return false;
+  }
+
+  const dist = (a: NormalizedLandmark, b: NormalizedLandmark) =>
+    Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+
+  const indexExtended = dist(indexTip, indexMcp) > 0.18;
+  const middleExtended = dist(middleTip, middleMcp) > 0.18;
+  const ringFolded = dist(ringTip, ringMcp) < 0.18;
+  const pinkyFolded = dist(pinkyTip, pinkyMcp) < 0.18;
+
+  return indexExtended && middleExtended && ringFolded && pinkyFolded;
+};
+
 const emptyDebug = (scoreThreshold: number): GojoPoseDebugInfo => ({
   thumb: 'none',
   index: 'none',
