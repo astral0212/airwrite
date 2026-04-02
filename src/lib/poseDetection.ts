@@ -53,7 +53,7 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.35,
+  scoreThreshold: 0.55,
   thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
   middleNearIndexMaxX: 0.20,
@@ -158,13 +158,19 @@ export const detectGojoPose = (
     return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
   }
 
-  // In a fist, fingertips are close to the palm (wrist or MCP area)
-  const maxCurlDist = 0.22;
+  // Reject if thumb and index are pinching (tips very close = draw gesture, not fist)
+  const thumbIndexDist = distance(thumbTip, indexTip);
+  if (thumbIndexDist < 0.1) {
+    return { matched: false, score: 0, debug: emptyDebug(config.scoreThreshold) };
+  }
+
+  // In a fist, all fingertips are close to their MCP knuckles
+  const maxCurlDist = 0.16;
   const indexScore = proximityScore(distance(indexTip, indexMcp), maxCurlDist);
   const middleScore = proximityScore(distance(middleTip, landmarks[9]!), maxCurlDist);
   const ringScore = proximityScore(distance(ringTip, landmarks[13]!), maxCurlDist);
   const pinkyScore = proximityScore(distance(pinkyTip, landmarks[17]!), maxCurlDist);
-  const thumbScore = proximityScore(distance(thumbTip, indexMcp), 0.28);
+  const thumbScore = proximityScore(distance(thumbTip, indexMcp), 0.22);
 
   const score = clamp((indexScore + middleScore + ringScore + pinkyScore + thumbScore * 0.5) / 4.5, 0, 1);
   const matched = score >= config.scoreThreshold;
