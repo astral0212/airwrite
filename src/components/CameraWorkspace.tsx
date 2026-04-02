@@ -297,7 +297,10 @@ export default function CameraWorkspace() {
 
     let cursorPosition: Point | null = null;
 
-    if (landmarks) {
+    // Block drawing when a gesture (peace or fist hold) is in progress
+    const gestureBlocked = peaceHoldRef.current > 0 || peaceCooldownRef.current > 0;
+
+    if (landmarks && !gestureBlocked) {
       lostTrackingFramesRef.current = 0;
       const indexTip = landmarks[INDEX_FINGER_TIP];
       const thumbTip = landmarks[THUMB_TIP];
@@ -326,7 +329,18 @@ export default function CameraWorkspace() {
         isPinchedRef.current = false;
         endStroke();
       }
-    } else if (isPinchedRef.current) {
+    } else if (gestureBlocked && isPinchedRef.current) {
+      isPinchedRef.current = false;
+      endStroke();
+    }
+
+    // Still show cursor when gesture blocked
+    if (landmarks && gestureBlocked) {
+      const indexTip = landmarks[INDEX_FINGER_TIP];
+      if (indexTip) cursorPosition = { x: indexTip.x * canvas.width, y: indexTip.y * canvas.height };
+    }
+
+    if (!landmarks && isPinchedRef.current) {
       lostTrackingFramesRef.current += 1;
       if (lostTrackingFramesRef.current > 12) {
         isPinchedRef.current = false;

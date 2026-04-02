@@ -53,7 +53,7 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.55,
+  scoreThreshold: 0.42,
   thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
   middleNearIndexMaxX: 0.20,
@@ -102,10 +102,10 @@ export const detectPeaceSign = (landmarks: NormalizedLandmark[]): boolean => {
   const dist = (a: NormalizedLandmark, b: NormalizedLandmark) =>
     Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 
-  const indexExtended = dist(indexTip, indexMcp) > 0.18;
-  const middleExtended = dist(middleTip, middleMcp) > 0.18;
-  const ringFolded = dist(ringTip, ringMcp) < 0.18;
-  const pinkyFolded = dist(pinkyTip, pinkyMcp) < 0.18;
+  const indexExtended = dist(indexTip, indexMcp) > 0.20;
+  const middleExtended = dist(middleTip, middleMcp) > 0.20;
+  const ringFolded = dist(ringTip, ringMcp) < 0.14;
+  const pinkyFolded = dist(pinkyTip, pinkyMcp) < 0.14;
 
   return indexExtended && middleExtended && ringFolded && pinkyFolded;
 };
@@ -165,7 +165,7 @@ export const detectGojoPose = (
   }
 
   // In a fist, all fingertips are close to their MCP knuckles
-  const maxCurlDist = 0.16;
+  const maxCurlDist = 0.19;
   const indexScore = proximityScore(distance(indexTip, indexMcp), maxCurlDist);
   const middleScore = proximityScore(distance(middleTip, landmarks[9]!), maxCurlDist);
   const ringScore = proximityScore(distance(ringTip, landmarks[13]!), maxCurlDist);

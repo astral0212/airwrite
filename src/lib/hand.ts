@@ -1,7 +1,7 @@
 import { NormalizedLandmark } from '@mediapipe/hands';
 
-export const PINCH_ENTER_DISTANCE = 0.058;
-export const PINCH_EXIT_DISTANCE = 0.085;
+export const PINCH_ENTER_DISTANCE = 0.038;
+export const PINCH_EXIT_DISTANCE = 0.055;
 export const THUMB_TIP = 4;
 export const INDEX_FINGER_TIP = 8;
 
