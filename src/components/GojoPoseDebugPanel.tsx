@@ -84,11 +84,11 @@ export default function GojoPoseDebugPanel({
       </div>
 
       <div className="mt-4 rounded-2xl bg-slate-900/80 p-3 text-xs text-slate-400">
-        <p>Index above middle: {debugInfo.indexAboveMiddle ? 'yes' : 'no'}</p>
-        <p>Middle near index: {debugInfo.middleNearIndex ? 'yes' : 'no'}</p>
-        <p>Pinky spread: {debugInfo.pinkySpread.toFixed(2)}</p>
-        <p>Ring curl: {debugInfo.ringCurl.toFixed(2)}</p>
-        <p>Thumb tuck dist: {debugInfo.thumbTuckDistance.toFixed(2)}</p>
+        <p>Hands detected: {debugInfo.indexAboveMiddle ? '2' : '1 or 0'}</p>
+        <p>Wrist proximity: {debugInfo.thumbScore.toFixed(2)}</p>
+        <p>Palm proximity: {debugInfo.ringScore.toFixed(2)}</p>
+        <p>Tip proximity: {debugInfo.indexScore.toFixed(2)}</p>
+        <p>Wrist distance: {debugInfo.thumbTuckDistance.toFixed(2)}</p>
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.45,
+  scoreThreshold: 0.35,
   thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
   middleNearIndexMaxX: 0.20,
@@ -125,19 +125,19 @@ export const detectGojoPose = (
   }
 
   // Wrist proximity (landmark 0)
-  const wristScore = h1[0] && h2[0] ? proximityScore(distance(h1[0], h2[0]), 0.4) : 0;
+  const wristScore = h1[0] && h2[0] ? proximityScore(distance(h1[0], h2[0]), 0.7) : 0;
 
   // Palm center proximity (landmark 9 = middle MCP)
-  const palmScore = h1[9] && h2[9] ? proximityScore(distance(h1[9], h2[9]), 0.35) : 0;
+  const palmScore = h1[9] && h2[9] ? proximityScore(distance(h1[9], h2[9]), 0.65) : 0;
 
   // Index tip proximity (landmark 8)
-  const indexScore = h1[8] && h2[8] ? proximityScore(distance(h1[8], h2[8]), 0.3) : 0;
+  const indexScore = h1[8] && h2[8] ? proximityScore(distance(h1[8], h2[8]), 0.6) : 0;
 
   // Pinky tip proximity (landmark 20)
-  const pinkyScore = h1[20] && h2[20] ? proximityScore(distance(h1[20], h2[20]), 0.3) : 0;
+  const pinkyScore = h1[20] && h2[20] ? proximityScore(distance(h1[20], h2[20]), 0.6) : 0;
 
   // Middle tip proximity (landmark 12)
-  const middleScore = h1[12] && h2[12] ? proximityScore(distance(h1[12], h2[12]), 0.3) : 0;
+  const middleScore = h1[12] && h2[12] ? proximityScore(distance(h1[12], h2[12]), 0.6) : 0;
 
   const score = clamp((wristScore * 1.5 + palmScore * 1.5 + indexScore + middleScore + pinkyScore) / 6.5, 0, 1);
   const matched = score >= config.scoreThreshold;
