@@ -1,12 +1,12 @@
 import type { NormalizedLandmark } from '@mediapipe/hands';
-import { getFingerCurl, getFingerState, getFingerTip, FingerState } from './fingerUtils';
+import { getFingerCurl, getFingerTip } from './fingerUtils';
 
 export interface GojoPoseDebugInfo {
-  thumb: FingerState;
-  index: FingerState;
-  middle: FingerState;
-  ring: FingerState;
-  pinky: FingerState;
+  thumb: string;
+  index: string;
+  middle: string;
+  ring: string;
+  pinky: string;
   indexAboveMiddle: boolean;
   middleNearIndex: boolean;
   pinkySpread: number;
@@ -54,25 +54,25 @@ export interface GojoPoseConfig {
 }
 
 export const DEFAULT_GOJO_POSE_CONFIG: GojoPoseConfig = {
-  scoreThreshold: 0.45,
-  thumbTuckMaxDistance: 0.32,
+  scoreThreshold: 0.42,
+  thumbTuckMaxDistance: 0.35,
   indexAboveMiddleMinY: 0.01,
-  middleNearIndexMaxX: 0.18,
-  middleNearIndexMaxY: 0.22,
+  middleNearIndexMaxX: 0.20,
+  middleNearIndexMaxY: 0.25,
   pinkySpreadMin: 0.02,
-  pinkySpreadMax: 0.32,
-  extendedCurlMax: 110,  // used as min threshold — fingers above this count as extended
-  bentCurlMin: 70,
-  bentCurlMax: 155,
-  foldedCurlMin: 100,    // used as max threshold — fingers below this count as folded
-  thumbWeight: 0.5,
-  indexWeight: 1.5,
-  middleWeight: 0.5,
+  pinkySpreadMax: 0.35,
+  extendedCurlMax: 100,
+  bentCurlMin: 60,
+  bentCurlMax: 160,
+  foldedCurlMin: 110,
+  thumbWeight: 1.5,
+  indexWeight: 1.0,
+  middleWeight: 1.0,
   ringWeight: 0.5,
   pinkyWeight: 1.5,
-  indexAboveMiddleWeight: 0.3,
-  middleNearIndexWeight: 0.3,
-  pinkySpreadWeight: 0.3,
+  indexAboveMiddleWeight: 0.2,
+  middleNearIndexWeight: 0.2,
+  pinkySpreadWeight: 0.5,
 };
 
 const distance = (a: NormalizedLandmark, b: NormalizedLandmark) => {
@@ -83,29 +83,16 @@ const distance = (a: NormalizedLandmark, b: NormalizedLandmark) => {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const normalize = (value: number, min: number, max: number) => clamp((value - min) / (max - min), 0, 1);
-
-// Extended = large angle (straight finger ~180°), folded = small angle (curled ~30-70°)
+// Extended = large curl angle (straight finger ~180°)
 const getExtendedScore = (curl: number, min: number) => clamp((curl - min) / (180 - min), 0, 1);
 
-const getBentScore = (curl: number, min: number, max: number) => {
-  if (curl <= min || curl >= max) return 0;
-  const mid = (min + max) / 2;
-  return 1 - Math.abs(curl - mid) / ((max - min) / 2);
-};
-
+// Folded = small curl angle (curled finger ~30-80°)
 const getFoldedScore = (curl: number, max: number) => clamp(1 - curl / max, 0, 1);
 
 export const detectGojoPose = (
   landmarks: NormalizedLandmark[],
   config: GojoPoseConfig = DEFAULT_GOJO_POSE_CONFIG,
 ): GojoPoseResult => {
-  const thumbState = getFingerState(landmarks, 'thumb');
-  const indexState = getFingerState(landmarks, 'index');
-  const middleState = getFingerState(landmarks, 'middle');
-  const ringState = getFingerState(landmarks, 'ring');
-  const pinkyState = getFingerState(landmarks, 'pinky');
-
   const indexTip = getFingerTip(landmarks, 'index');
   const middleTip = getFingerTip(landmarks, 'middle');
   const ringTip = getFingerTip(landmarks, 'ring');
@@ -113,41 +100,48 @@ export const detectGojoPose = (
   const thumbTip = getFingerTip(landmarks, 'thumb');
   const indexMcp = landmarks[5];
 
-  const indexAboveMiddle = Boolean(
-    indexTip && middleTip && indexTip.y < middleTip.y - config.indexAboveMiddleMinY,
-  );
-
-  const middleNearIndex = Boolean(
-    indexTip &&
-      middleTip &&
-      Math.abs(indexTip.x - middleTip.x) < config.middleNearIndexMaxX &&
-      Math.abs(indexTip.y - middleTip.y) < config.middleNearIndexMaxY,
-  );
-
-  const pinkySpread = pinkyTip && ringTip ? distance(pinkyTip, ringTip) : 0;
-  const thumbTuckDistance = thumbTip && indexMcp ? distance(thumbTip, indexMcp) : 1;
-
   const indexCurl = getFingerCurl(landmarks, 'index');
   const middleCurl = getFingerCurl(landmarks, 'middle');
-  const ringCurlAngle = getFingerCurl(landmarks, 'ring');
+  const ringCurl = getFingerCurl(landmarks, 'ring');
   const pinkyCurl = getFingerCurl(landmarks, 'pinky');
 
-  const thumbTuckScore = clamp((config.thumbTuckMaxDistance - thumbTuckDistance) / config.thumbTuckMaxDistance, 0, 1);
-  const thumbScore = thumbTuckScore;
+  // Thumb pinched against index — close distance between thumb tip and index tip/mcp
+  const thumbToIndex = thumbTip && indexTip ? distance(thumbTip, indexTip) : 1;
+  const thumbToMcp = thumbTip && indexMcp ? distance(thumbTip, indexMcp) : 1;
+  const thumbPinchDist = Math.min(thumbToIndex, thumbToMcp);
+  const thumbScore = clamp(1 - thumbPinchDist / config.thumbTuckMaxDistance, 0, 1);
+
+  // Index: extended or slightly bent upward
   const indexScore = getExtendedScore(indexCurl, config.extendedCurlMax);
-  const middleScore = getBentScore(middleCurl, config.bentCurlMin, config.bentCurlMax);
-  const ringScore = getFoldedScore(ringCurlAngle, config.foldedCurlMin);
+
+  // Middle: folded/bent downward (small curl angle)
+  const middleScore = getFoldedScore(middleCurl, config.foldedCurlMin);
+
+  // Ring: folded inward (small curl angle) — lenient
+  const ringScore = getFoldedScore(ringCurl, config.foldedCurlMin * 1.2);
+
+  // Pinky: extended outward
   const pinkyScore = getExtendedScore(pinkyCurl, config.extendedCurlMax);
-  const indexAboveMiddleScore = indexTip && middleTip ? normalize(middleTip.y - indexTip.y, 0, config.indexAboveMiddleMinY) : 0;
-  const middleNearIndexScore =
-    indexTip && middleTip
-      ?
-          (clamp((config.middleNearIndexMaxX - Math.abs(indexTip.x - middleTip.x)) / config.middleNearIndexMaxX, 0, 1) +
-            clamp((config.middleNearIndexMaxY - Math.abs(indexTip.y - middleTip.y)) / config.middleNearIndexMaxY, 0, 1)) /
-          2
-      :
-        0;
-  const pinkySpreadScore = normalize(pinkySpread, config.pinkySpreadMin, config.pinkySpreadMax);
+
+  // Index above middle (index tip higher in frame = smaller y)
+  const indexAboveMiddle = Boolean(indexTip && middleTip && indexTip.y < middleTip.y - config.indexAboveMiddleMinY);
+  const indexAboveMiddleScore = indexTip && middleTip
+    ? clamp((middleTip.y - indexTip.y) / 0.15, 0, 1)
+    : 0;
+
+  // Middle near index base
+  const middleNearIndex = Boolean(
+    indexTip && middleTip &&
+    Math.abs(indexTip.x - middleTip.x) < config.middleNearIndexMaxX &&
+    Math.abs(indexTip.y - middleTip.y) < config.middleNearIndexMaxY,
+  );
+  const middleNearIndexScore = indexTip && middleTip
+    ? clamp(1 - distance(indexTip, middleTip) / 0.25, 0, 1)
+    : 0;
+
+  // Pinky spread away from ring
+  const pinkySpread = pinkyTip && ringTip ? distance(pinkyTip, ringTip) : 0;
+  const pinkySpreadScore = clamp((pinkySpread - config.pinkySpreadMin) / (config.pinkySpreadMax - config.pinkySpreadMin), 0, 1);
 
   const totalScore =
     thumbScore * config.thumbWeight +
@@ -173,16 +167,16 @@ export const detectGojoPose = (
   const matched = normalizedScore >= config.scoreThreshold;
 
   const debug: GojoPoseDebugInfo = {
-    thumb: thumbState,
-    index: indexState,
-    middle: middleState,
-    ring: ringState,
-    pinky: pinkyState,
+    thumb: thumbScore > 0.5 ? 'pinched' : 'open',
+    index: indexScore > 0.5 ? 'extended' : 'folded',
+    middle: middleScore > 0.5 ? 'folded' : 'extended',
+    ring: ringScore > 0.5 ? 'folded' : 'extended',
+    pinky: pinkyScore > 0.5 ? 'extended' : 'folded',
     indexAboveMiddle,
     middleNearIndex,
     pinkySpread,
-    ringCurl: ringState === 'folded' ? 1 : ringState === 'bent' ? 0.5 : 0,
-    thumbTuckDistance,
+    ringCurl: ringScore,
+    thumbTuckDistance: thumbPinchDist,
     thumbScore,
     indexScore,
     middleScore,
@@ -191,7 +185,7 @@ export const detectGojoPose = (
     indexAboveMiddleScore,
     middleNearIndexScore,
     pinkySpreadScore,
-    thumbTuckScore,
+    thumbTuckScore: thumbScore,
     scoreThreshold: config.scoreThreshold,
     score: normalizedScore,
   };
