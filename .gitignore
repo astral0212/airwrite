@@ -9,3 +9,5 @@ package-lock.json
 .pnpm-debug.log*
 .vscode/
 .github/
+tsconfig.tsbuildinfo
+next-env.d.ts
